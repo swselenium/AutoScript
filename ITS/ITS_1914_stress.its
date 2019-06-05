@@ -1,0 +1,360 @@
+bool boot2shell(){
+	if(:FindOption("Boot Manager",ARROWDN,20,0.7,White|BackBlack,2)){
+		:Log("Find-Boot Manager",PASS)
+		:Delay(0.5)
+		:ENTER
+		:Delay(1)
+	}else{
+		:Log("Find-Boot Manager",FAIL)
+		:Capture()
+		return (false)}
+	if(:WaitUntil("EFI Internal Shell",30,0.7)){
+		:Log("Enter Boot Manager",PASS)
+		:Delay(1)
+	}else{
+		:Log("Enter Boot Manager",FAIL)
+		:Capture()
+		return (false)}
+	if(:FindOption("EFI Internal Shell",ARROWDN,20,0.7,White|BackBlack,2)){
+		:Log("Find-EFI Internal Shell",PASS)
+		:Delay(0.5)
+		:ENTER
+		:Delay(2)
+	}else{
+		:Log("Find-EFI Internal Shell",FAIL)
+		:Capture()
+		return (false)}
+	if(:WaitUntil("Shell>",60,0.7)){
+		:Log("Enter Shell",PASS)
+		:Input("mode 100 31 ",0.1)
+		:ENTER
+		return (true)}
+	else{
+		:Log("Enter Shell",FAIL)
+		:Capture()
+		return (false)}
+}
+bool BootToShell()
+{
+	:SetControlMode(COM4,serial)
+	:CleanBuffer()
+	:ENTER
+	:ESC(5)
+	if(:WaitUntil("Shell>"|"FS/*>",5,0.7))
+	{
+		:Log("SUT is in Shell.",INFO)
+		return (true)
+	}
+	else if(:WaitUntil("Select Language",5,0.7))
+	{
+		:Log("SUT is in Setup FrontPage.",PASS)
+		boot2shell()
+    }
+	else
+	{
+		:Log("SUT isn't in Shell&FrontPage.",INFO)
+		:Jumper(1,On)
+		:Delay(5)
+		:Jumper(1,Off)
+		:Delay(5)
+		:Jumper(1,On)
+		:Delay(0.5)
+		:Jumper(1,Off)
+		:Delay(0.5)
+		:F2(150)
+		if(:WaitUntil("MinnowBoard V3 B1 PLATFORM",100,0.7))
+		{
+			:Log("boot2BIOS-FrontPage", PASS)
+			boot2shell()
+
+		}
+		else
+		{
+			:Log("boot2BIOS-FrontPage", FAIL)
+			:CopyBuffer("release.txt")
+			:Capture()
+			return (false)
+		}
+	}
+}
+
+bool boot2Bios()
+{
+	:SetControlMode(COM4,serial)
+	:CleanBuffer()
+	:ENTER
+	:ESC(5)
+	if(:WaitUntil("Select Language",5,0.7))
+	{
+		:Log("SUT is in Setup FrontPage.",PASS)
+		return (true)
+	}
+	else if(:WaitUntil("Shell>"|"FS/*>",5,0.7))
+	{
+		:Log("SUT is in Shell.",INFO)
+		:ENTER
+		:Input("exit",0.3)
+		:ENTER
+		:ESC(2)
+		if(:WaitUntil("Select Language",100,0.7))
+		{
+			:Log("boot2BIOS-FrontPage", PASS)
+
+		}
+		else
+		{
+			:Log("boot2BIOS-FrontPage", FAIL)
+			:Capture()
+			return (false)
+		}
+		return (true)
+	}
+	else
+	{
+		:Log("SUT isn't in Shell&FrontPage.",INFO)
+		:Jumper(1,On)
+		:Delay(5)
+		:Jumper(1,Off)
+		:Delay(5)
+		:Jumper(1,On)
+		:Delay(0.5)
+		:Jumper(1,Off)
+		:Delay(0.5)
+		:F2(150)
+		if(:WaitUntil("MinnowBoard PLATFORM",30,0.7)){
+			:Log("boot2BIOS-FrontPage", PASS)
+			return (true)
+		}else{
+			:Log("boot2BIOS-FrontPage", FAIL)
+			:CopyBuffer("release.txt")
+			:Capture()
+			return (false)}
+	}
+}
+
+
+
+bool NVRamstress(){
+	int i=0
+	while(i<5){
+		:Input("fs"+i+":",0.3)
+		:ENTER
+		:Input("ls",0.3)
+		:ENTER
+		if(:WaitUntil("NVRam", 10,0.9)){
+			:Log("Find-USB Device ", PASS)
+			:Input("cd NVRam",0.3)
+			:Delay(1)
+			:ENTER
+			:Input("loop_set.nsh 100",0.1)
+			:ENTER
+			:Delay(5)
+			if(:WaitUntil("PASSED", 60, 0.8)){
+				:Log("loop_set.nsh 100 pass", PASS)	
+				:Delay(1)
+			}else{
+				:Log("loop_set.nsh 100 fail", FAIL)
+				:Capture()
+				return(false)
+			}
+			:Delay(1)
+			:Input("loop_set_nv.nsh 100",0.1)
+			:ENTER
+			:Delay(5)
+			if(:WaitUntil("PASSED", 60, 0.8)){
+				:Log("loop_set_nv.nsh 100 pass", PASS)	
+				:Delay(1)
+				return (true)
+			}else{
+				:Log("loop_set_nv.nsh 100 fail", FAIL)
+				:Capture()
+				return(false)}		
+		}else{
+			:ENTER
+			i++
+		}
+	}
+	while(i==5){
+		:Log("Cannot Find-USB Device ", FAIL)
+		return (false)}
+}
+
+void shelledit(){
+	:SetControlMode (0,SUT)
+	:SetSutResolution(1920,1080)
+	:SetControlMode(COM4,SERIAL)
+	:Delay(5)
+	:Input("fs0:",0.3)
+	:ENTER
+	:Delay(1)
+	:Input("edit",0.3)
+	:ENTER
+	:Input("fs0:",0.3)
+	:ENTER(2)
+	:Delay(1)
+	:Input("time >> reset.txt ",0.3)
+	:ENTER(2)
+	:Delay(1)
+	:Input("reset",0.3)
+	:Delay(1)
+	:SetControlMode (0,SUT)
+	:SetSutResolution(1920,1080)
+	:KeyDown("CTRL"|"Q")
+	:Delay(0.5)
+	:KeyUp("Q"|"CTRL")
+	:Delay(1)
+	:KeyDown("Y")
+	:Delay(0.5)
+	:KeyUp("Y")
+}
+
+bool shellstress(){
+	int i=0
+	shelledit()
+	:SetControlMode(COM4,serial)
+	:Input("ls",0.1)
+	:ENTER
+	if(:WaitUntil("NewFile0.txt",30, 0.7, White|BackBlack)){
+		:Log("Shell stress script complete successful",PASS)
+		:Delay(1)
+		:Input("ren NewFile0.txt startup.nsh",0.3)
+		:Delay(1)
+		:ENTER
+	}else{
+		:Log("Shell stress script complete successful",FAIL)
+		:Capture()
+		return (false)}		
+	:SetControlMode (0,SUT)
+	:SetSutResolution(1920,1080)
+	:KeyDown("CTRL"|"ALT"|"DELETE")
+	:Delay(0.5)
+	:KeyUp("DELETE"|"ALT"|"CTRL")
+	:SetControlMode(COM4,serial)
+	while(i<10){
+		if(:WaitUntil("UEFI Interactive Shell v2.2", 30, 0.7)){
+			:Log("shell reset "+(i+1)+" times",PASS)
+			:Delay(5)
+		}else{	
+			:Log("SUT-shell reset", FAIL)
+			:Capture()
+			return (false)}
+		i++
+	}if(i==10){
+		if(:WaitUntil("UEFI Interactive Shell v2.2", 30, 0.7)){
+			:Log("shell reset "+(i+1)+" times",PASS)
+			:ESC(50)
+			:Delay(1)
+			:Input("fs0:",0.3)
+			:ENTER
+			:Delay(1)
+			:Input("rm startup.nsh",0.3)
+			:ENTER
+			:Input("reset -s",0.3)
+			:ENTER
+		}else{	
+			:Log("SUT-shell reset", FAIL)
+			:Capture()
+			return (false)}
+	}
+}
+
+bool SetShellfirstboot(){
+	if(:FindOption("Boot Manager",ARROWDN,20,0.7,White|BackBlack,2)){
+		:Log("Find-Boot Manager",PASS)
+		:Delay(0.5)
+		:ENTER
+		:Delay(1)
+	}else{
+		:Log("Find-Boot Manager",FAIL)
+		:Capture()
+		return (false)}
+	if(:WaitUntil("EFI Internal Shell",30,0.7)){
+		:Log("Enter Boot Manager",PASS)
+		:Delay(1)
+	}else{
+		:Log("Enter Boot Manager",FAIL)
+		:Capture()
+		return (false)}
+	if(:FindOption("EFI Internal Shell",ARROWDN,1,0.7,White|BackBlack,2)){
+		:Log("EFI Internal Shell is The First Boot Option",INFO)
+		:Delay(0.5)
+		:ESC(5)
+		:Delay(5)
+		return (true)
+	}else{
+		:Log("EFI Internal Shell isn't The First Boot Option",INFO)
+		:ESC(5)
+		:Delay(5)
+		if(:FindOption("Boot Maintenance Manager",ARROWDN,10,0.7,White|BackBlack,2)){
+			:Log("Find Boot Maintenance Manager",PASS)
+			:Delay(0.5)
+			:ENTER
+			:Delay(1)
+		}else{
+			:Log("Find Boot Maintenance Manager",FAIL)
+			:Capture()
+			:Delay(0.5)
+			return (false)}
+		if(:FindOption("Boot Options",ARROWDN,20,0.7,White|BackBlack,2)){
+			:Log("Find-Boot Options",PASS)
+			:Delay(1)
+			:ENTER
+		}else{
+			:Log("Find-Boot Options",FAIL)
+			:Capture()
+			return (false)}
+		if(:FindOption("Change Boot Order",ARROWDN,20,0.7,White|BackBlack,2)){
+			:Log("Find-Change Boot Order",PASS)
+			:Delay(2)
+#			:ENTER
+#			:Delay(2)
+			:ENTER
+			:Delay(1)
+		}else{
+			:Log("Find-Change Boot Order",FAIL)
+			:Capture()
+			return (false)}
+#		For EFI shell not the optional item, add "SPACE" to continue test.
+		if(:FindOption(" ",SPACE,1,0.1,White|BackBlack,2)){
+			:ENTER
+			:Delay(1)
+		}
+		:Delay(1)
+		:ENTER
+		if(:FindOption("EFI Internal Shell",ARROWDN,30,0.7,White|BackCyan,0.2)){
+			:Input("+++++++++++++++",0.3)
+			:Delay(5)
+			:ENTER
+			:Delay(1)
+			:F10(1)
+		if(:WaitUntil("Save configuration changes?",10,0.7)){
+			:Log("Find-Save changes prompt",PASS)
+			:Delay(1)
+			:Input("y",0.3)
+			:Delay(3)
+			:Log("Set EFI Internal Shell First Boot Option",PASS)
+			:ESC(5)
+			:Delay(5)
+			return (true)
+		}else{
+			:Log("Find-Save changes prompt",FAIL)
+			:Log("Set EFI Internal Shell First Boot Option",FAIL)
+			:Capture()
+			return (false)}}
+	}
+}
+
+
+	
+
+void main(){
+	:Usb("A","NC")
+	:Usb("B","B1")
+	BootToShell()
+	NVRamstress()
+	boot2Bios()
+	SetShellfirstboot()
+	BootToShell()
+	shellstress()
+}
+main()

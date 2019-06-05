@@ -1,0 +1,706 @@
+bool boot2Bios()
+{
+	:SetControlMode(Com4,serial)
+	:CleanBuffer()
+#	:ENTER
+	:ESC(5)
+	if(:WaitUntil("Select Language",5,0.7))
+	{
+		:Log("SUT is in Setup FrontPage.",PASS)
+		return (true)
+	}
+	else if(:WaitUntil("Shell>"|"FS/*>",5,0.7))
+	{
+		:Log("SUT is in Shell.",INFO)
+		:ENTER
+		:Input("exit",0.3)
+		:ENTER
+		:ESC(2)
+		if(:WaitUntil("Select Language",100,0.7))
+		{
+			:Log("boot2BIOS-FrontPage", PASS)
+
+		}
+		else
+		{
+			:Log("boot2BIOS-FrontPage", FAIL)
+			:Capture()
+			return (false)
+		}
+		return (true)
+	}
+	else
+	{
+		:Log("SUT isn't in Shell&FrontPage.",INFO)
+		:Jumper(1,On)
+		:Delay(5)
+		:Jumper(1,Off)
+		:Delay(5)
+		:Jumper(1,On)
+		:Delay(0.5)
+		:Jumper(1,Off)
+		:Delay(0.5)
+		:F2(50)
+		if(:WaitUntil("Select Language",30,0.7)){
+			:Log("boot2BIOS-FrontPage", PASS)
+			return (true)
+		}else{
+			:Log("boot2BIOS-FrontPage", FAIL)
+			:CopyBuffer("release.txt")
+			:Capture()
+			return (false)}
+	}
+}
+
+#boot2Bios()
+
+
+bool boot2shell(){
+	if(:FindOption("Boot Manager",ARROWDN,20,0.7,White|BackBlack,2)){
+		:Log("Find-Boot Manager",PASS)
+		:Delay(0.5)
+		:ENTER
+		:Delay(1)
+	}else{
+		:Log("Find-Boot Manager",FAIL)
+		:Capture()
+		return (false)}
+	if(:WaitUntil("EFI Internal Shell",30,0.7)){
+		:Log("Enter Boot Manager",PASS)
+		:Delay(1)
+	}else{
+		:Log("Enter Boot Manager",FAIL)
+		:Capture()
+		return (false)}
+	if(:FindOption("EFI Internal Shell",ARROWDN,20,0.7,White|BackBlack,2)){
+		:Log("Find-EFI Internal Shell",PASS)
+		:Delay(0.5)
+		:ENTER
+		:Delay(2)
+	}else{
+		:Log("Find-EFI Internal Shell",FAIL)
+		:Capture()
+		return (false)}
+	if(:WaitUntil("Shell>",60,0.7)){
+		:Log("Enter Shell",PASS)
+		:Input("mode 100 31 ",0.1)
+		:ENTER
+		return (true)}
+	else{
+		:Log("Enter Shell",FAIL)
+		:Capture()
+		return (false)}
+}
+bool BootToShell()
+{
+	:SetControlMode(Com4,serial)
+	:CleanBuffer()
+	:ENTER
+	:ESC(5)
+	if(:WaitUntil("Shell>"|"FS/*>",5,0.7))
+	{
+		:Log("SUT is in Shell.",INFO)
+		return (true)
+	}
+	else if(:WaitUntil("Select Language",5,0.7))
+	{
+		:Log("SUT is in Setup FrontPage.",PASS)
+		boot2shell()
+    }
+	else
+	{
+		:Log("SUT isn't in Shell&FrontPage.",INFO)
+		:Jumper(1,On)
+		:Delay(5)
+		:Jumper(1,Off)
+		:Delay(5)
+		:Jumper(1,On)
+		:Delay(0.5)
+		:Jumper(1,Off)
+		:Delay(0.5)
+		:F2(150)
+		if(:WaitUntil("MinnowBoard V3 B1 PLATFORM",100,0.7))
+		{
+			:Log("boot2BIOS-FrontPage", PASS)
+			boot2shell()
+
+		}
+		else
+		{
+			:Log("boot2BIOS-FrontPage", FAIL)
+			:CopyBuffer("release.txt")
+			:Capture()
+			return (false)
+		}
+	}
+}
+
+#BootToShell()
+
+//Clean Disk to Install OS.
+//
+/*++
+
+Routine Description:
+Target must in UEFI Shell before run this case. You should run BootToShell() first.
+
+Returns:
+  false - Abnormal exit, that is fail in this step.
+  true  - Normal exit, that is pass in this step.
+
+--*/
+
+bool selectUSBdevice(){
+	int i=0
+	while(i<5){
+		:Input("map -r",0.3)
+		:ENTER
+		if(:WaitUntil("fs"+i+"     :Removable HardDisk", 10,0.9)){
+			:Log("Find-USB Device ", PASS)
+			:Input("fs"+i+":",0.3)
+			:ENTER
+			return (true)
+		}else{
+			:ENTER
+			i++}
+		}
+	while(i==5){
+		:Log("Cannot Find-USB Device ", FAIL)
+		return (false)}
+}
+
+bool diskpart(){
+	:Input("fs0:",0.3)
+	:Delay(1)
+	:ENTER
+	:Input("Shell_Full_x64.efi",0.3)
+	:ENTER
+	:Delay(1)
+	:ESC
+	if(selectUSBdevice()){
+		:Input("cd Diskpart",0.3)
+		:Delay(1)
+		:ENTER
+		:Input("mode 100 31 ",0.1)
+		:ENTER
+		:Delay(3)
+		:Input("diskpart_x64.efi",0.1)
+		:Delay(1)
+		:ENTER
+		:Delay(3)
+		if(:WaitUntil("DiskPart>",10,0.7)){
+			:Log("Enter-diskpart",PASS)
+			:Input("list",0.1)
+			:Delay(1)
+			:ENTER
+			:Delay(3)
+			:Input("select 0",0.1)
+			:ENTER
+			:Delay(1)
+			if(:WaitUntil("Selected Disk =   0",20,0.7)){
+				:Log("Select disk 0",PASS)
+				:Delay(1)
+				:Input("clean",0.1)
+				:Delay(1)
+				:ENTER
+				if(:WaitUntil("About to CLEAN (DESTROY) disk 0, are you SURE"|"CLEAN>>"|"About to CLEAN", 20, 0.7, White | BackBlack)){
+					:Log("Meet-About to clean",PASS)
+					:Delay(1)
+					:Input("y",0.1)
+					:Delay(1)
+					:ENTER
+					:Delay(1)
+					:Input("$C",0.1)
+					:Delay(1)
+					:ENTER
+					:Delay(1)
+					:Input("new gpt",0.1)
+					:Delay(1)
+					:ENTER
+					:Delay(10)
+					:Input("exit",0.1)
+					:ENTER
+					:Input("exit",0.1)
+					:ENTER
+					return (true)
+				}else{
+					:Log("Meet-About to clean",FAIL)
+					:Capture()
+					return (false)
+				}
+			}else{
+				:Log("Select disk 0",FAIL)
+				:Capture()
+				return (false)}
+		}else{
+			:Log("Enter-diskpart",FAIL)
+			:Capture()
+			return (false)}
+	}
+}
+//Install UEFI Ubuntu 16.04.2 Desktop on Minnow3
+//
+/*++
+
+Routine Description:
+Install Ubuntu on Minnow3. Make sure there are only one HDD ,one SATA DVD and one USB storage inserted into SUT.
+
+
+Returns:
+  false - Abnormal exit, that is fail in this step.
+  true  - Normal exit, that is pass in this step.
+
+--*/
+bool UbuntuInstall(string type){
+	if(:FindOption("Boot Manager",ARROWDN,10,0.9,White|BackBlack,2)){
+		:Log("Find-Boot Manager",PASS)
+		:Delay(1)
+		:ENTER
+	}else{
+		:Log("Find-Boot Manager",FAIL)
+		:Capture()
+		return (false)}
+	if(:WaitUntil("EFI Internal Shell",30,0.9)){
+		:Log("Enter Boot Manager",PASS)
+	}else{
+		:Log("Enter Boot Manager",FAIL)
+		:Capture()
+		return (false)}
+	if(:FindOption("EFI USB Device", ARROWDN, 11, 0, White | BackBlack, 0)){
+		:Log("Enter USB Device",PASS)
+		:ENTER
+	}else{
+		:Log("Enter USB Device",FAIL)
+		:Capture()
+		return (false)}
+	:SetControlMode (0,SUT)
+	:SetSutResolution(1920,1080)
+	if(:WaitUntil("1-version202.PNG", 200,0.9)){
+		:Log("Meet_GNU GRUB version 2.02~beta2-29", PASS)
+		:Delay(1)
+		:ARROWDN
+		:Delay(1)
+		:ENTER 
+		:Delay(30)
+	}else{
+		:Log("Meet_GNU GRUB version 2.02~beta2-29", FAIL)
+		:Capture()
+		return (false)}
+	if(:WaitUntil("2-Welcome.PNG", 300,0.9 )){
+		:Log("Meet_Welcome", PASS)
+		:Delay(10)
+		:ENTER
+		:Delay(10)
+	}else{
+		:Log("Meet_Welcome",FAIL)
+		:Capture()
+		return (false)}
+	if(:WaitUntil("3-PreparingInstall.PNG", 100,0.9 )){
+		:Log("Meet-Preparing to Install Ubuntu",PASS)
+		:Delay(5)	
+		:TAB(3)
+		:Delay(2)
+		:ENTER
+		:Delay(20)
+	}else{
+		:Log("Meet-Preparing to Install Ubuntu",FAIL)
+		:Capture()
+		return (false)}
+	if((type=="UEFI")){
+		if(:WaitUntil("4-ForceUEFIinstallation.PNG"|"4-ForceUEFIinstallation_1.PNG", 600,0.9 )){
+			:Log("Meet-force UEFI Installation?",PASS)
+			:Delay(1)	
+			:TAB
+			:Delay(1)
+			:ENTER
+			:Delay(10)
+		}else{
+			:Log("Meet-force UEFI Installation?",FAIL)
+			:Capture()
+			return (false)}
+	}
+	if(:WaitUntil("5-InstallationType.PNG", 1000,0.0)){
+		:Log("Meet-Installation Type",PASS)
+		:Delay(7)		
+		:TAB(5)
+		:Delay(2)
+		:ENTER
+		:Delay(5)			
+	}else{
+		:Log("Meet-Meet-Installation Type",FAIL)
+		:Capture()
+		return (false)}
+	while(:WaitUntil("eMMC.PNG", 10, 0.8)==false){
+		:TAB
+	}
+	if(:FindOption("disk.PNG", ARROWDN, 20, 0)){
+		:ENTER(2)
+		:Log("Select disk Successfully!",PASS)
+	}else{
+		:Log("Select disk Successfully!",FAIL)
+		:Capture()
+		return(false)}
+	if(:WaitUntil("6-ErasediskaAndInstall.PNG", 100,0.9 )){
+		:Log("Meet-Right to select installation type Erase disk and install Ubuntu",PASS)
+
+		:Delay(5)	
+		:TAB(3)
+		:Delay(3)
+		:ENTER
+		:Delay(5)		
+	}else{
+		:Log("Select unknown Installation Type",FAIL)
+		:Capture()
+		return(false)}
+	if(:WaitUntil("7-WriteChangesToDisk.PNG", 100,0.9 )){
+		:Log("Meet- Write the changes to disks?",PASS)
+		:Delay(1)	
+		:TAB
+		:Delay(1)
+		:ENTER	
+		:Delay(5)		
+	}else{
+		:Log("Meet-Write the changes to disks?",FAIL)
+		:Capture()
+		return(false)}										
+	if(:WaitUntil("8-WhereAreYou.PNG", 100,0.9 )){
+		:Log("Meet- Where are you",PASS)
+		:TAB(2)
+		:Delay(2)
+		:ENTER	
+		:Delay(10)		
+	}else{
+		:Log("Meet-Where are you",FAIL)
+		:Capture()
+		return(false)}											
+	if(:WaitUntil("9-KeyboardLayout.PNG", 100,0.9 )){
+		:Log("Meet-keyboard layout",PASS)
+		:TAB(5)												
+		:Delay(3)														
+		:ENTER										
+		:Delay(10)	
+	}else{
+		:Log("Meet-keyboard layout",FAIL)
+		:Capture()
+		return(false)}
+	if(:WaitUntil("10-WhoAreYou.PNG", 100,0.9 )){
+		:Log("Meet-Who are you?",PASS)
+		:Input("ITS TEST", 0.02)
+		:Delay(2)
+		:TAB
+		:Input("tiano", 0.02)
+		:Delay(2)
+		:TAB(2)
+		:Input("intel@123", 0.02)
+		:Delay(2)
+		:TAB
+		:Input("intel@123", 0.02)
+		:TAB(4)
+		:ENTER
+		:Delay(500)
+	}else{
+		:Log("Meet-Who are you?",FAIL)
+		:Capture()
+		return(false)}
+	if(:WaitUntil("12-InstallComplete.PNG", 600,0.9 )){
+		:Log("Meet-Install Complete",PASS)
+		:Delay(60)
+		:ENTER(10)
+		:Delay(100)
+#		:Jumper(1, On)
+#		:Delay(0.5)
+#		:Jumper(1, Off)
+#		:Delay(30)
+		return (true)
+	}else{
+		:Log("Install Complete",FAIL)
+		:Capture()
+		return(false)}
+}
+
+bool warmboot(){
+	:SetControlMode (0,SUT)
+	:SetSutResolution(1920,1080)
+	int i=0
+	:Delay(5)
+	while(i<3){
+		if(:WaitUntil("login.PNG"|"login1.PNG",200,0.7)){
+			:Log("Meet - Login windows", PASS)
+			:Delay(5)
+			:Input("intel@123", 0.3)
+			:Delay(1)
+			:ENTER
+			:Delay(5)
+			if(:WaitUntil("Desktop.PNG"|"Desktop1.PNG", 200, 0.75)){
+				:Log("Meet -Ubuntu Desktop", PASS)
+				:Delay(5)
+				:KeyDown ("CTRL"|"ALT"|"t")
+				:KeyUp ("t"|"ALT"|"CTRL")
+				:Delay(1)
+				if(:WaitUntil("Terminal.PNG"|"Terminal1.PNG",200,0.7)){
+					:Log("Met Terminal",PASS)
+					:Delay(1)
+					:Input("reboot",0.3)
+					:ENTER
+					if(:WaitUntil("Ubuntustart.PNG",200,0.8)){
+						:Log("Meet - SUT Reboot pass "+(i+1)+" times", PASS)
+						i++
+						:Delay(5)
+					}else{
+						:Log("Meet-  SUT Reboot pass "+(i+1)+" times", FAIL)
+						:Capture()
+						return (false)}
+				}else{
+					:Log("Meet Terminal", FAIL)
+					:Capture()
+					return (false)}
+			}else{
+				:Log("Meet -Ubuntu Desktop", FAIL)
+				:Capture()
+				return (false)}
+		}else{
+			:Log("Meet - Login windows", FAIL)
+			:Capture()
+			return (false)}
+	}
+	if(i==3){
+		return (true)
+	}
+}
+
+bool ubuntuS3(){
+	:SetControlMode (0,SUT)
+	:SetSutResolution(1920,1080)
+	int i=0
+	:Delay(5)		
+	while(i<1){
+		if(:WaitUntil("login.PNG"|"login1.PNG",200,0.7)){
+			:Log("Meet - Login windows", PASS)
+			:Input("intel@123", 0.3)
+			:ENTER
+			:Delay(3)
+			if(:WaitUntil("Desktop.PNG"|"Desktop1.PNG", 200, 0.75)){
+				:Log("Meet -Ubuntu Desktop", PASS)
+				:Delay(5)
+				:KeyDown ("CTRL"|"ALT"|"t")
+				:KeyUp ("t"|"ALT"|"CTRL")
+				:Delay(1)
+				if(:WaitUntil("Terminal.PNG"|"Terminal1.PNG",30,0.7)){
+					:Log("Met Terminal",PASS)
+					:Delay(1)
+					:Input("sudo passwd",0.3)
+					:ENTER
+					if(:WaitUntil("S3-passwd.PNG", 30,0.7)){
+						:Log("Meet - passwd", PASS)
+						:Delay(1)
+						:Input("intel@123",0.3)
+						:ENTER
+						if(:WaitUntil("S3-UNIX.PNG", 30,0.7)){
+							:Log("Meet - UNIX", PASS)
+							:Delay(1)
+							:Input("123",0.3)
+							:ENTER
+							:Delay(5)
+							:Input("123",0.3)
+							:ENTER
+							if(:WaitUntil("S3-passUNIX.PNG", 60,0.7)){
+								:Log("Meet - passUNIX", PASS)
+								:Delay(1)
+								:Input("su root",0.3)
+								:ENTER
+								if(:WaitUntil("S3-root.PNG", 30,0.7)){
+									:Log("Meet - root", PASS)
+									:Delay(1)
+									:Input("123",0.3)
+									:ENTER
+									if(:WaitUntil("S3-rootcheck.PNG", 30,0.7)){
+										:Log("Meet - rootcheck", PASS)
+										:Delay(1)
+										int j=0
+										:Delay(5)		
+										while(j<3){
+											:Input("echo mem>/sys/power/state",0.3)
+											:ENTER
+											if(:WaitVanish("Desktop.PNG"|"Desktop1.PNG", 100,0.7)){
+												:Log("Meet - SUT S3 pass "+(j+1)+" times", PASS)
+												:Delay(10)
+												:Jumper(1, On)
+												:Delay(0.5)
+												:Jumper(1, Off)
+												:Delay(10)
+												j++
+											}else{
+												:Log("Meet - SUT S3 pass "+(j+1)+" times", FAIL)
+												:Capture()
+												return (false)}	
+										}
+										if(j!=3){
+											:Log("SUT fail to finish S3 test", FAIL)
+											:Capture()
+											return (false)
+										}									
+										i++
+									}else{
+										:Log("Meet - rootcheck", FAIL)
+										:Capture()
+										return (false)}
+								}else{
+									:Log("Meet - root", FAIL)
+									:Capture()
+									return (false)}
+							}else{
+								:Log("Meet - passUNIX", FAIL)
+									:Capture()
+									return (false)}
+						}else{	
+							:Log("Meet - UNIX", FAIL)
+							:Capture()
+							return (false)}
+					}else{
+						:Log("Meet - passwd", FAIL)
+						:Capture()
+						return (false)}
+				}else{
+					:Log("Meet Terminal", FAIL)
+					:Capture()
+					return (false)}					
+			}else{
+				:Log("Meet -Ubuntu Desktop", FAIL)
+				:Capture()
+				return (false)}
+		}else{
+			:Log("Meet - Login windows", FAIL)
+			:Capture()
+			return (false)}
+	}
+	while(i==1){
+		:Input("reboot",0.3)
+		:ENTER
+		if(:WaitUntil("Ubuntustart.PNG",200,0.7)){
+			:Log("Meet - SUT Reboot pass", PASS)
+			:Delay(5)
+			return(true)
+		}else{
+			:Log("Meet - SUT Reboot pass", FAIL)
+			:Capture()
+			return (false)}
+	}
+}
+
+bool coldboot(){
+	:SetControlMode (0,SUT)
+	:SetSutResolution(1920,1080)
+	int i=0
+	:Delay(5)		
+	while(i<2){
+		if(:WaitUntil("login.PNG"|"login1.PNG",200,0.7)){
+			:Log("Meet - Login windows", PASS)
+			:Input("intel@123", 0.3)
+			:ENTER
+			:Delay(3)
+			if(:WaitUntil("Desktop.PNG"|"Desktop1.PNG", 200, 0.75)){
+				:Log("Meet -Ubuntu Desktop", PASS)
+				:Delay(5)
+				:KeyDown ("CTRL"|"ALT"|"t")
+				:KeyUp ("t"|"ALT"|"CTRL")
+				:Delay(1)
+				if(:WaitUntil("Terminal.PNG"|"Terminal1.PNG",30,0.7)){
+					:Log("Met Terminal",PASS)
+					:Delay(1)
+					:Input("shutdown -h now",0.3)
+					:ENTER
+					if(:WaitVanish("Terminal.PNG"|"Terminal1.PNG", 100,0.7)){
+						:Log("Meet - SUT shutdown pass "+(i+1)+" times", PASS)
+						:Delay(30)
+						:Jumper(1, On)
+						:Delay(0.5)
+						:Jumper(1, Off)
+						:Delay(30)
+						i++					
+					}else{
+						:Log("Meet - SUT shutdown pass "+(i+1)+" times", FAIL)
+						:Capture()
+						return (false)}
+				}else{
+					:Log("Meet Terminal", FAIL)
+					:Capture()
+					return (false)}					
+			}else{
+				:Log("Meet -Ubuntu Desktop", FAIL)
+				:Capture()
+				return (false)}
+		}else{
+			:Log("Meet - Login windows", FAIL)
+			:Capture()
+			return (false)}
+	}
+	while(i==2){
+		if(:WaitUntil("login.PNG"|"login1.PNG",200,0.7)){
+			:Log("Meet - Login windows", PASS)
+			:Input("intel@123", 0.3)
+			:ENTER
+			:Delay(3)
+			if(:WaitUntil("Desktop.PNG"|"Desktop1.PNG", 200, 0.75)){
+				:Log("Meet - Ubuntu Desktop", PASS)
+				:Delay(5)
+				:KeyDown ("CTRL"|"ALT"|"t")
+				:KeyUp ("t"|"ALT"|"CTRL")
+				:Delay(1)
+				if(:WaitUntil("Terminal.PNG"|"Terminal1.PNG",30,0.7)){
+					:Log("Met Terminal",PASS)
+					:Delay(1)
+					:Input("shutdown -h now",0.3)
+					:ENTER
+					if(:WaitVanish("Terminal.PNG"|"Terminal1.PNG", 100,0.7)){
+						:Log("Meet - SUT shutdown pass 3 times", PASS)
+						:Delay(30)
+						return (true)
+					}else{
+						:Log("Meet - SUT shutdown pass 3 times", FAIL)
+						:Capture()
+						return (false)}
+				}else{
+					:Log("Meet - Terminal", FAIL)
+					:Capture()
+					return (false)}	
+			}else{
+				:Log("Meet - Ubuntu Desktop", FAIL)
+				:Capture()
+				return (false)}										
+		}else{
+			:Log("Meet - Login windows", FAIL)
+			:Capture()
+			return (false)}
+	}
+}
+
+
+bool main(){
+	:SetControlMode(Com4,serial)
+	/*Connect Sata 2 to SUT*/
+	:Usb ("B","NC")
+	:Usb ("A","A1")
+	:Delay(0.5)
+	:DC(1,on)
+	:Sata(1, On)
+	:Jumper(1, On)
+	:Delay(0.5)
+	:Jumper(1, Off)
+	:F2(50)
+	:Delay(5)
+	
+	/*Clean installed Ubuntu*/
+	BootToShell()
+	diskpart()
+
+	/*Install Ubuntu*/	
+	boot2Bios()
+	UbuntuInstall("UEFI")
+	
+	/*Do shutdown & reboot operations*/		
+	warmboot()
+	ubuntuS3()
+	coldboot()
+}
+main()
+	
